@@ -3,7 +3,8 @@ name: "Release"
 on:
   push:
     branches:
-      - main
+        - main
+        - ui/login-page
 
 jobs:
   publish:
@@ -42,5 +43,5 @@ jobs:
           tagName: app-v__VERSION__ # the action will replace __VERSION__ with the version from package.json
           releaseName: "DigiSafe v__VERSION__"
           releaseBody: "Automated release from GitHub Actions"
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
