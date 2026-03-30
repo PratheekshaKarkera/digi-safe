@@ -309,7 +309,7 @@ function App() {
       const vaultPath = await join(dataDir, "vault");
       const newAssets: AssetFile[] = [];
       for (const p of paths) {
-        const filename = p.split('/').pop() || "unknown";
+        const filename = p.replace(/\\/g, '/').split('/').pop() || "unknown";
         const categoryId = getCategoryId(filename);
         await mkdir(await join(vaultPath, categoryId), { recursive: true });
         await copyFile(p, await join(vaultPath, categoryId, filename));
