@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { open, ask } from "@tauri-apps/plugin-dialog";
 import { appLocalDataDir, join } from "@tauri-apps/api/path";
 import { mkdir, copyFile, readFile, writeFile, rename, remove } from "@tauri-apps/plugin-fs";
@@ -7,29 +7,47 @@ import "./App.css";
 
 // --- Icons Component ---
 const Icons = {
-  Files: ({ style }: { style?: any }) => (
-    <svg style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
+  Home: () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
   ),
-  Folders: () => (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+  Folder: () => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+  ),
+  File: () => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
+  ),
+  Image: () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+  ),
+  Video: () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+  ),
+  Upload: () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
   ),
   Lock: () => (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
   ),
-  Clock: () => (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+  Settings: () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
   ),
-  Plus: () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+  More: () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
   ),
   Search: () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
   ),
-  Back: () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+  Filter: () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+  ),
+  Sort: () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18H3M21 12H3M18 6H3"></path></svg>
   ),
   Eye: () => (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+  ),
+  EyeOff: () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
   ),
   Shield: () => (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
@@ -39,6 +57,18 @@ const Icons = {
   ),
   Unlock: () => (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>
+  ),
+  Sun: () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+  ),
+  Moon: () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+  ),
+  Check: () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+  ),
+  Alert: () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
   )
 };
 
@@ -56,6 +86,8 @@ interface AssetFile {
   category: string;
   time: string;
   isLocked?: boolean;
+  deletedAt?: string;
+  originalCategory?: string;
 }
 
 function App() {
@@ -72,6 +104,28 @@ function App() {
   const [previewData, setPreviewData] = useState<{ name: string; type: string; url: string; category: string } | null>(null);
   const [pendingOpenFile, setPendingOpenFile] = useState<AssetFile | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showSignupPassword, setShowSignupPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterType, setFilterType] = useState("All");
+  const [sortBy, setSortBy] = useState("Date-Newest");
+  const [notifications, setNotifications] = useState<{ id: number; message: string; type: "success" | "error" | "info" }[]>([]);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    return localStorage.getItem("theme") === "dark" || 
+           (!localStorage.getItem("theme") && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  });
+
+  useEffect(() => {
+    localStorage.setItem("theme", isDarkMode ? "dark" : "light");
+  }, [isDarkMode]);
+  const showNotification = (message: string, type: "success" | "error" | "info" = "info") => {
+    const id = Date.now();
+    setNotifications(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    }, 4000);
+  };
 
   useEffect(() => {
     const initStorage = async () => {
@@ -117,13 +171,13 @@ function App() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirmPassword) {
-      alert("Passwords do not match!");
+      showNotification("Passwords do not match!");
       return;
     }
     try {
       const users = await loadUsers();
       if (users.find(u => u.username === username)) {
-        alert("Username already exists!");
+        showNotification("Username already exists!");
         return;
       }
       const newUser: User = { username, passwordHash: password, pin: securityPin };
@@ -132,11 +186,11 @@ function App() {
       const usersPath = await join(dataDir, "users.json");
       await mkdir(dataDir, { recursive: true });
       await writeFile(usersPath, new TextEncoder().encode(JSON.stringify(updatedUsers)));
-      alert("Account created successfully!");
+      showNotification("Account created successfully!");
       setView("LOGIN");
       setPassword("");
       setConfirmPassword("");
-    } catch (err: any) { alert("Signup error: " + (err.message || err)); }
+    } catch (err: any) { showNotification("Signup error: " + (err.message || err)); }
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -148,9 +202,9 @@ function App() {
         setCurrentUser(user);
         setView("DASHBOARD");
       } else {
-        alert("Invalid credentials.");
+        showNotification("Invalid credentials.");
       }
-    } catch (err: any) { alert("Login error: " + (err.message || err)); }
+    } catch (err: any) { showNotification("Login error: " + (err.message || err)); }
   };
 
   const loadVault = async () => {
@@ -161,8 +215,36 @@ function App() {
       try {
         const metadataRaw = await readFile(metadataPath);
         const metadata = JSON.parse(new TextDecoder().decode(metadataRaw));
-        setVaultFiles(metadata.files || []);
+        const loadedFiles: AssetFile[] = metadata.files || [];
+        
+        // Auto-delete Trash older than 30 days
+        const now = new Date();
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(now.getDate() - 30);
+        
+        const vaultPath = await join(dataDir, "vault");
+        const validFiles: AssetFile[] = [];
+        let metadataChanged = false;
+
+        for (const file of loadedFiles) {
+          if (file.category === "Trash" && file.deletedAt) {
+            if (new Date(file.deletedAt) < thirtyDaysAgo) {
+              try {
+                const filePath = await join(vaultPath, "Trash", file.name);
+                await remove(filePath);
+                metadataChanged = true;
+                continue; // Skip adding to validFiles
+              } catch (e) { console.error("Auto-delete IO error:", e); }
+            }
+          }
+          validFiles.push(file);
+        }
+
+        setVaultFiles(validFiles);
         setActivities(metadata.activities || []);
+        if (metadataChanged) {
+          saveMetadata(validFiles, metadata.activities || []);
+        }
       } catch (e) {
         setVaultFiles([]);
         setActivities([]);
@@ -196,8 +278,8 @@ function App() {
       setVaultFiles(updatedFiles);
       setActivities(updatedActivities);
       saveMetadata(updatedFiles, updatedActivities);
-      alert(`${file.name} locked!`);
-    } catch (err: any) { alert("Lock failed: " + err.message); }
+      showNotification(`${file.name} locked!`);
+    } catch (err: any) { showNotification("Lock failed: " + err.message); }
   };
 
   const handleUnlockFile = async (file: AssetFile) => {
@@ -220,37 +302,81 @@ function App() {
       setVaultFiles(updatedFiles);
       setActivities(updatedActivities);
       saveMetadata(updatedFiles, updatedActivities);
-      alert(`${file.name} is now unlocked.`);
+      showNotification(`${file.name} is now unlocked.`);
     } catch (err: any) {
-      alert("Unlock failed: " + err.message);
+      showNotification("Unlock failed: " + err.message);
     }
   };
 
   const handleDeleteFile = async (file: AssetFile) => {
     try {
-      const confirm = await ask(`Are you sure you want to permanently delete "${file.name}"?`, {
-        title: "Delete File",
-        kind: "warning"
-      });
-      if (!confirm) return;
-
       const dataDir = await appLocalDataDir();
-      const filePath = await join(dataDir, "vault", file.category, file.name);
-      await remove(filePath);
-      
-      const updatedFiles = vaultFiles.filter(f => !(f.name === file.name && f.category === file.category));
-      setVaultFiles(updatedFiles);
-      setActivities([`Deleted "${file.name}"`, ...activities]);
-      saveMetadata(updatedFiles, [`Deleted "${file.name}"`, ...activities]);
-    } catch (err: any) {
-      alert("Delete failed: " + err.message);
+      const vaultPath = await join(dataDir, "vault");
+
+      if (file.category === "Trash") {
+        if (!confirm(`This will permanently delete ${file.name}. Continue?`)) return;
+        const filePath = await join(vaultPath, "Trash", file.name);
+        await remove(filePath);
+        const updated = vaultFiles.filter(f => f.name !== file.name || f.category !== "Trash");
+        setVaultFiles(updated);
+        setActivities([`Permanently deleted ${file.name}`, ...activities]);
+        saveMetadata(updated, [`Permanently deleted ${file.name}`, ...activities]);
+        return;
+      }
+
+      // Move to Trash
+      await mkdir(await join(vaultPath, "Trash"), { recursive: true });
+      const oldPath = await join(vaultPath, file.category, file.name);
+      const newPath = await join(vaultPath, "Trash", file.name);
+      await rename(oldPath, newPath);
+
+      const updated = vaultFiles.map(f => {
+        if (f.name === file.name && f.category === file.category) {
+          return { ...f, originalCategory: f.category, category: "Trash", deletedAt: new Date().toISOString() };
+        }
+        return f;
+      });
+
+      setVaultFiles(updated);
+      setActivities([`Moved ${file.name} to Trash`, ...activities]);
+      saveMetadata(updated, [`Moved ${file.name} to Trash`, ...activities]);
+    } catch (err) {
+      console.error("Delete error:", err);
+      showNotification("Error moving file to Trash");
+    }
+  };
+
+  const handleRestoreFile = async (file: AssetFile) => {
+    try {
+      const dataDir = await appLocalDataDir();
+      const vaultPath = await join(dataDir, "vault");
+      const targetCategory = file.originalCategory || "Custom";
+
+      await mkdir(await join(vaultPath, targetCategory), { recursive: true });
+      const oldPath = await join(vaultPath, "Trash", file.name);
+      const newPath = await join(vaultPath, targetCategory, file.name);
+      await rename(oldPath, newPath);
+
+      const updated = vaultFiles.map(f => {
+        if (f.name === file.name && f.category === "Trash") {
+          return { ...f, category: targetCategory, deletedAt: undefined, originalCategory: undefined };
+        }
+        return f;
+      });
+
+      setVaultFiles(updated);
+      setActivities([`Restored ${file.name} from Trash`, ...activities]);
+      saveMetadata(updated, [`Restored ${file.name} from Trash`, ...activities]);
+    } catch (err) {
+      console.error("Restore error:", err);
+      showNotification("Error restoring file");
     }
   };
 
   const handleVerifyPin = async () => {
     if (!currentUser) return;
     if (!currentUser.pin) {
-      if (pinInput.length !== 4) { alert("PIN must be 4 digits!"); return; }
+      if (pinInput.length !== 4) { showNotification("PIN must be 4 digits!"); return; }
       const updatedUser = { ...currentUser, pin: pinInput };
       const users = await loadUsers();
       const newUsersList = users.map(u => u.username === updatedUser.username ? updatedUser : u);
@@ -259,7 +385,7 @@ function App() {
       setCurrentUser(updatedUser);
       setIsPinModalOpen(false);
       setPinInput("");
-      alert("PIN set!");
+      showNotification("PIN set!");
       return;
     }
     if (pinInput === currentUser.pin) {
@@ -272,7 +398,7 @@ function App() {
       setIsPinModalOpen(false);
       setPinInput("");
     } else {
-      alert("Incorrect PIN.");
+      showNotification("Incorrect PIN.");
     }
   };
 
@@ -300,6 +426,29 @@ function App() {
     }
   };
 
+  const filteredAssets = useMemo(() => {
+    return (vaultFiles || []).filter((asset) => {
+      const matchesSearch = asset.name.toLowerCase().includes((searchQuery || "").toLowerCase());
+      
+      // When no category is selected, hide files in Trash
+      if (!selectedCategory && asset.category === "Trash") return false;
+      
+      // When a category is selected, only show files THAT match that category
+      if (selectedCategory && asset.category !== selectedCategory) return false;
+
+      const matchesFilter = filterType === "All" || asset.category === filterType;
+      return matchesSearch && matchesFilter;
+    }).sort((a, b) => {
+      if (sortBy === "Name-AZ") return a.name.localeCompare(b.name);
+      if (sortBy === "Name-ZA") return b.name.localeCompare(a.name);
+      if (sortBy === "Date-Newest") return new Date(b.time || 0).getTime() - new Date(a.time || 0).getTime();
+      if (sortBy === "Date-Oldest") return new Date(a.time || 0).getTime() - new Date(b.time || 0).getTime();
+      if (sortBy === "Size-Largest") return parseFloat(b.size) - parseFloat(a.size);
+      if (sortBy === "Size-Smallest") return parseFloat(a.size) - parseFloat(b.size);
+      return 0;
+    });
+  }, [vaultFiles, searchQuery, selectedCategory, filterType, sortBy]);
+
   const handleUpload = async () => {
     try {
       const selected = await open({ multiple: true });
@@ -311,29 +460,72 @@ function App() {
       for (const p of paths) {
         const filename = p.replace(/\\/g, '/').split('/').pop() || "unknown";
         const categoryId = getCategoryId(filename);
+
+        const sizeStr = "2.5 MB";
+        const timeStr = new Date().toLocaleString();
+
+        const newAsset: AssetFile = {
+            name: filename,
+            size: sizeStr,
+            category: categoryId,
+            time: timeStr,
+            isLocked: false
+        };
+
         await mkdir(await join(vaultPath, categoryId), { recursive: true });
         await copyFile(p, await join(vaultPath, categoryId, filename));
-        newAssets.push({ name: filename, size: "2.1 MB", category: categoryId, time: new Date().toLocaleTimeString() });
+        newAssets.push(newAsset);
       }
-      const updated = [...newAssets, ...vaultFiles];
-      setVaultFiles(updated);
+      const updatedFiles = [...vaultFiles, ...newAssets];
+      setVaultFiles(updatedFiles);
+      if (currentUser) {
+        await saveMetadata(updatedFiles, [`Uploaded ${newAssets.length} files`, ...activities]);
+      }
       setActivities([`Uploaded ${newAssets.length} files`, ...activities]);
-      saveMetadata(updated, [`Uploaded ${newAssets.length} files`, ...activities]);
-    } catch (err: any) { alert("Upload error: " + err); }
+      showNotification(`Uploaded ${newAssets.length} files`);
+    } catch (err) {
+      console.error("Upload error:", err);
+      showNotification("Upload failed: " + err);
+    }
   };
 
   return (
-    <div className="app-container">
+    <div className={`app-container auth-bg ${isDarkMode ? "dark-mode" : ""}`}>
+      <div className="blob blob-1"></div>
+      <div className="blob blob-2"></div>
+      <div className="blob blob-3"></div>
+      <div className="bg-sphere sphere-1"></div>
+      <div className="bg-sphere sphere-2"></div>
+      <div className="bg-sphere sphere-3"></div>
       {view !== "DASHBOARD" ? (
         <section className="left-section">
-          <div className="top-logo">Beyond.</div>
-          <div className="blob blob-1"></div><div className="blob blob-2"></div>
+          <div className="auth-header" style={{ display: 'flex', justifyContent: 'space-between', width: '100%', position: 'absolute', top: '40px', padding: '0 40px', zIndex: 100 }}>
+            <div className="top-logo" style={{ position: 'static' }}>DigiSafe</div>
+            <button 
+              className="icon-btn" 
+              onClick={() => {
+                console.log("Setting Dark Mode:", !isDarkMode);
+                setIsDarkMode(!isDarkMode);
+              }}
+              title="Toggle Theme"
+            >
+              {isDarkMode ? <Icons.Sun /> : <Icons.Moon />}
+            </button>
+          </div>
           {view === "LOGIN" ? (
             <div className="signin-card">
               <header className="signin-header"><h1 className="signin-title">Sign in</h1></header>
               <form onSubmit={handleLogin}>
-                <div className="form-group"><label className="form-label">Username</label><input type="text" className="form-input" value={username} onChange={(e) => setUsername(e.target.value)} required /></div>
-                <div className="form-group"><label className="form-label">Password</label><input type="password" className="form-input" value={password} onChange={(e) => setPassword(e.target.value)} required /></div>
+                <div className="form-group"><label className="form-label">Username</label><input type="text" className="form-input" placeholder="Enter your username" value={username} onChange={(e) => setUsername(e.target.value)} required /></div>
+                <div className="form-group">
+                  <label className="form-label">Password</label>
+                  <div className="input-wrapper">
+                    <input type={showPassword ? "text" : "password"} className="form-input" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                    <button type="button" className="password-toggle" onClick={() => setShowPassword(!showPassword)}>
+                      {showPassword ? <Icons.EyeOff /> : <Icons.Eye />}
+                    </button>
+                  </div>
+                </div>
                 <button type="submit" className="submit-btn">Sign in</button>
               </form>
               <div className="signup-prompt">No account? <button className="signup-link" onClick={() => setView("SIGNUP")}>Sign up</button></div>
@@ -342,10 +534,26 @@ function App() {
             <div className="signin-card">
               <header className="signin-header"><h1 className="signin-title">Sign up</h1></header>
               <form onSubmit={handleSignup}>
-                <div className="form-group"><label className="form-label">Username</label><input type="text" className="form-input" value={username} onChange={(e) => setUsername(e.target.value)} required /></div>
-                <div className="form-group"><label className="form-label">Password</label><input type="password" className="form-input" value={password} onChange={(e) => setPassword(e.target.value)} required /></div>
-                <div className="form-group"><label className="form-label">Confirm Password</label><input type="password" className="form-input" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required /></div>
-                <div className="form-group"><label className="form-label">Security PIN (4-digits)</label><input type="text" maxLength={4} className="form-input" value={securityPin} onChange={(e) => setSecurityPin(e.target.value)} required /></div>
+                <div className="form-group"><label className="form-label">Username</label><input type="text" className="form-input" placeholder="Choose a username" value={username} onChange={(e) => setUsername(e.target.value)} required /></div>
+                <div className="form-group">
+                  <label className="form-label">Password</label>
+                  <div className="input-wrapper">
+                    <input type={showSignupPassword ? "text" : "password"} className="form-input" placeholder="Create a password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                    <button type="button" className="password-toggle" onClick={() => setShowSignupPassword(!showSignupPassword)}>
+                      {showSignupPassword ? <Icons.EyeOff /> : <Icons.Eye />}
+                    </button>
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Confirm Password</label>
+                  <div className="input-wrapper">
+                    <input type={showConfirmPassword ? "text" : "password"} className="form-input" placeholder="••••••••" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
+                    <button type="button" className="password-toggle" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
+                      {showConfirmPassword ? <Icons.EyeOff /> : <Icons.Eye />}
+                    </button>
+                  </div>
+                </div>
+                <div className="form-group"><label className="form-label">Security PIN (4-digits)</label><input type="text" maxLength={4} className="form-input" placeholder="1234" value={securityPin} onChange={(e) => setSecurityPin(e.target.value)} required /></div>
                 <button type="submit" className="submit-btn">Create Account</button>
                 <button className="signup-link" onClick={() => setView("LOGIN")} style={{ marginTop: "10px", width: "100%" }}>Back to Login</button>
               </form>
@@ -355,16 +563,71 @@ function App() {
       ) : (
         <div className="dashboard-container">
           <header className="dashboard-header">
-            <div><h1>Welcome, {currentUser?.username}!</h1><p>Your digital vault is secured.</p></div>
+            <div className="welcome-msg">
+              <h1>Welcome, {currentUser?.username}!</h1>
+              <p>Your digital vault is secured.</p>
+            </div>
+            <div className="search-filter-bar">
+              <div className="search-box">
+                <Icons.Search />
+                <input 
+                  type="text" 
+                  placeholder="Search files..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <div className="filter-controls">
+                <div className="select-wrapper">
+                  <Icons.Filter />
+                  <select value={filterType} onChange={(e) => setFilterType(e.target.value)}>
+                    <option value="All">All Types</option>
+                    <option value="Images">Images</option>
+                    <option value="Documents">Documents</option>
+                    <option value="Videos">Videos</option>
+                  </select>
+                </div>
+                <div className="select-wrapper">
+                  <Icons.Sort />
+                  <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+                    <option value="Date-Newest">Newest First</option>
+                    <option value="Date-Oldest">Oldest First</option>
+                    <option value="Name-AZ">Name (A-Z)</option>
+                    <option value="Name-ZA">Name (Z-A)</option>
+                    <option value="Size-Largest">Largest Size</option>
+                    <option value="Size-Smallest">Smallest Size</option>
+                  </select>
+                </div>
+              </div>
+            </div>
             <div className="profile-section">
               <div className="avatar">{currentUser?.username[0].toUpperCase()}</div>
-              <button className="google-btn" onClick={() => { setView("LOGIN"); setCurrentUser(null); }}>Logout</button>
+              <button 
+                className="icon-btn" 
+                onClick={() => {
+                  console.log("Setting Dark Mode:", !isDarkMode);
+                  setIsDarkMode(!isDarkMode);
+                }}
+                title="Toggle Theme"
+              >
+                {isDarkMode ? <Icons.Sun /> : <Icons.Moon />}
+              </button>
+              <button className="action-btn secondary" onClick={() => { setCurrentUser(null); setView("LOGIN"); }}>Logout</button>
             </div>
           </header>
           <div className="stats-grid">
-            <div className="stat-card"><h3>Vault Files</h3><p>{vaultFiles.length}</p></div>
-            <div className="stat-card"><h3>Locked Items</h3><p>{vaultFiles.filter(f => f.isLocked).length}</p></div>
-            <div className="stat-card"><h3>Categories</h3><p>6</p></div>
+            <div className="stat-card">
+              <div className="stat-icon bg-blue"><Icons.File /></div>
+              <div className="stat-info"><h3>Vault Files</h3><p>{vaultFiles.length}</p></div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon bg-purple"><Icons.Lock /></div>
+              <div className="stat-info"><h3>Locked Items</h3><p>{vaultFiles.filter(f => f.isLocked).length}</p></div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon bg-green"><Icons.Folder /></div>
+              <div className="stat-info"><h3>Categories</h3><p>6</p></div>
+            </div>
           </div>
           <div className="folders-section" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "20px", marginBottom: "32px" }}>
             <div className={`folder-card ${!selectedCategory ? "active-folder" : ""}`} onClick={() => setSelectedCategory(null)} style={{ border: !selectedCategory ? "2px solid var(--accent-blue)" : "none" }}>
@@ -390,22 +653,37 @@ function App() {
                 </div>
               </div>
               <div className="activity-list">
-                {vaultFiles
+                {filteredAssets
                   .filter(f => selectedCategory ? f.category === selectedCategory : !f.isLocked)
-                  .map((file, i) => (
-                  <div key={i} className="activity-item">
-                    <div style={{ flex: 1 }}><strong>{file.name}</strong><br/><small>{file.category} • {file.time}</small></div>
-                    <div style={{ display: "flex", gap: "8px" }}>
-                      <button className="google-btn" title="View" onClick={() => handleOpenFile(file)}><Icons.Eye /></button>
-                      {file.isLocked ? (
-                        <button className="google-btn" title="Unlock" onClick={() => handleUnlockFile(file)} style={{ color: "var(--accent-green)" }}><Icons.Unlock /></button>
-                      ) : (
-                        <button className="google-btn" title="Lock" onClick={() => handleLockFile(file)} style={{ color: "var(--accent-purple)" }}><Icons.Shield /></button>
-                      )}
-                      <button className="google-btn" title="Delete" onClick={() => handleDeleteFile(file)} style={{ color: "#ef4444" }}><Icons.Trash /></button>
+                  .length > 0 ? (
+                  filteredAssets
+                    .filter(f => selectedCategory ? f.category === selectedCategory : !f.isLocked)
+                    .map((file, i) => (
+                    <div key={i} className="activity-item">
+                      <div style={{ flex: 1 }}><strong>{file.name}</strong><br/><small>{file.category} • {file.time} • {file.size}</small></div>
+                      <div style={{ display: "flex", gap: "8px" }}>
+                        {file.category === "Trash" ? (
+                          <button className="icon-btn" title="Restore" onClick={() => handleRestoreFile(file)} style={{ color: "var(--accent-blue)" }}><Icons.Upload /></button>
+                        ) : (
+                          <>
+                            <button className="google-btn" title="View" onClick={() => handleOpenFile(file)}><Icons.Eye /></button>
+                            {file.isLocked ? (
+                              <button className="google-btn" title="Unlock" onClick={() => handleUnlockFile(file)} style={{ color: "var(--accent-green)" }}><Icons.Unlock /></button>
+                            ) : (
+                              <button className="google-btn" title="Lock" onClick={() => handleLockFile(file)} style={{ color: "var(--accent-purple)" }}><Icons.Shield /></button>
+                            )}
+                          </>
+                        )}
+                        <button className="google-btn" title={file.category === "Trash" ? "Delete Permanently" : "Move to Trash"} onClick={() => handleDeleteFile(file)} style={{ color: "#ef4444" }}><Icons.Trash /></button>
+                      </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="empty-state">
+                    <Icons.Search />
+                    <p>No files found matching your criteria.</p>
                   </div>
-                ))}
+                )}
               </div>
             </div>
             <div className="section-card">
@@ -451,10 +729,21 @@ function App() {
       {/* Hero section duplication for LOGIN/SIGNUP */}
       {view !== "DASHBOARD" && (
         <section className="right-section">
-          <div className="bg-sphere sphere-1"></div><div className="bg-sphere sphere-2"></div>
-          <div className="hero-image-container"><img src="/hero.png" alt="Beyond Illustration" className="hero-image" /></div>
+          <div className="hero-image-container"><img src="/login.png" alt="Beyond Illustration" className="hero-image" /></div>
         </section>
       )}
+      {/* Notifications Toast Container */}
+      <div className="notifications-container">
+        {notifications.map(n => (
+          <div key={n.id} className={`toast toast-${n.type}`}>
+            <span className="toast-icon">
+              {n.type === "success" ? <Icons.Check /> : <Icons.Alert />}
+            </span>
+            <span className="toast-message">{n.message}</span>
+            <button className="toast-close" onClick={() => setNotifications(prev => prev.filter(nn => nn.id !== n.id))}>×</button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
