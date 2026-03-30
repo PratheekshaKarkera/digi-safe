@@ -1,0 +1,25 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Capability for the main window",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "opener:default",
+    "opener:allow-reveal-item-in-dir",
+    "dialog:default",
+    "fs:default",
+    "core:path:default",
+    "fs:allow-read-file",
+    "fs:allow-write-file",
+    "fs:allow-mkdir",
+    "fs:allow-copy-file",
+    "fs:allow-exists",
+    "fs:read-all",
+    "fs:write-all",
+    "fs:scope-applocaldata-recursive",
+    "fs:scope-home-recursive",
+    "fs:scope-download-recursive",
+    "fs:scope-desktop-recursive"
+  ]
+}
