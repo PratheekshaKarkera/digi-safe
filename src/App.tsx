@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { open, ask } from "@tauri-apps/plugin-dialog";
+import { open } from "@tauri-apps/plugin-dialog";
 import { appLocalDataDir, join } from "@tauri-apps/api/path";
 import { mkdir, copyFile, readFile, writeFile, rename, remove } from "@tauri-apps/plugin-fs";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
