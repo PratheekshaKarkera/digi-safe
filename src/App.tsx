@@ -67,8 +67,6 @@ function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [vaultFiles, setVaultFiles] = useState<AssetFile[]>([]);
   const [activities, setActivities] = useState<string[]>([]);
-  const [statusMsg, setStatusMsg] = useState("");
-  const [showLockedView, setShowLockedView] = useState(false);
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [pinInput, setPinInput] = useState("");
   const [previewData, setPreviewData] = useState<{ name: string; type: string; url: string; category: string } | null>(null);
@@ -149,7 +147,6 @@ function App() {
       if (user) {
         setCurrentUser(user);
         setView("DASHBOARD");
-        setStatusMsg("");
       } else {
         alert("Invalid credentials.");
       }
@@ -301,13 +298,6 @@ function App() {
       const dataDir = await appLocalDataDir();
       await revealItemInDir(await join(dataDir, "vault", file.category, file.name));
     }
-  };
-
-  const handleOpenFolder = async (categoryId: string) => {
-    const dataDir = await appLocalDataDir();
-    const p = await join(dataDir, "vault", categoryId);
-    await mkdir(p, { recursive: true });
-    await revealItemInDir(p);
   };
 
   const handleUpload = async () => {
